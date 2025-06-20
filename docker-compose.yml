@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Serviço PHP/Apache
+  web:
+    build: .
+    container_name: php_apache
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./php.ini:/etc/php/8.2/apache2/php.ini
+      - ./apache-config:/etc/apache2/sites-available
+    depends_on:
+      - database
+    networks:
+      - app-network
+    environment:
+      - DB_HOST=database
+      - DB_PORT=3306
+      - DB_NAME=app_database
+      - DB_USER=app_user
+      - DB_PASSWORD=app_password
+
+  # Serviço MariaDB
+  database:
+    image: mariadb:latest
+    container_name: mariadb
+    ports:
+      - "3306:3306"
+    volumes:
+      # Opção 1: Diretório específico no host (recomendado)
+      - ./data/mysql:/var/lib/mysql
+      # Opção 2: Volume nomeado (comentado)
+      # - mariadb_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: app_database
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+    restart: unless-stopped
+
+  # Serviço phpMyAdmin (opcional)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    ports:
+      - "8081:80"
+    depends_on:
+      - database
+    networks:
+      - app-network
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+    restart: unless-stopped
+
+# Volume para persistir dados do MariaDB (opcional - usado apenas se escolher volume nomeado)
+volumes:
+  mariadb_data:
+    driver: local
+
+# Rede para comunicação entre containers
+networks:
+  app-network:
+    driver: bridge
